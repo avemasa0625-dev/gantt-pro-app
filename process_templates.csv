@@ -1,0 +1,14 @@
+﻿process_category,process_order,process_name,standard_time_min,standard_cost_yen,is_outsource
+板金,1,レーザー,30,1500,FALSE
+板金,2,曲げ,20,1000,FALSE
+板金,3,溶接,40,2000,FALSE
+板金,4,表面処理,0,0,TRUE
+板金,5,検査,10,500,FALSE
+切削,1,荒加工,60,3000,FALSE
+切削,2,仕上加工,40,2000,FALSE
+切削,3,検査,10,500,FALSE
+購入品,1,受入,5,250,FALSE
+購入品,2,検査,5,250,FALSE
+組立,1,部品終結,10,1000,FALSE
+組立,2,部品組立,10,1000,FALSE
+組立,3,製品検査,5,500,FALSE
