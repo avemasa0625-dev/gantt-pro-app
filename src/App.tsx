@@ -13,6 +13,14 @@ const FILES = { SCHEDULE: 'overall_schedule.csv', PRODUCT: 'product.csv', PARTS:
 const STORAGE_KEY = 'gantt_pro_user_data';
 const LOG_STORAGE_KEY = 'gantt_pro_work_log';
 
+const formatToHMS = (seconds: number) => {
+  const h = Math.floor(Math.abs(seconds) / 3600);
+  const m = Math.floor((Math.abs(seconds) % 3600) / 60);
+  const s = Math.abs(seconds) % 60;
+  const sign = seconds < 0 ? "-" : "";
+  return `${sign}${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
+
 function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [parts, setParts] = useState<PartWithProcesses[]>([]);
@@ -233,24 +241,44 @@ function App() {
   }, [selectedPartId, currentActive, workLog]);
 
   const handleExportLog = useCallback(() => {
+    // 1. 【数量ベース進捗】セクションの作成
     let csv = "\uFEFF【数量ベース進捗】\n注文番号,製品名,部品名,担当者,計画合計,累計完了,進捗率,日程差異\n";
     scheduleData.filter(s => s.進捗 === '計画').forEach(sched => {
       const act = workLog.activeLogs[sched.part_id]?.completedWorkCount || 0;
       const prog = sched.合計数 > 0 ? Math.round((act / sched.合計数) * 100) : 0;
       const n = new Date();
       const cp = sched.dailyProgress.reduce((sum, p) => {
-        const m = p.dateLabel.match(/(\d+)月(\d+)日/);
-        if (m && (parseInt(m[1]) < n.getMonth() + 1 || (parseInt(m[1]) === n.getMonth() + 1 && parseInt(m[2]) <= n.getDate()))) return sum + (p.value || 0);
+        const match = p.dateLabel.match(/(\d+)月(\d+)日/);
+        if (match && (parseInt(match[1]) < n.getMonth() + 1 || (parseInt(match[1]) === n.getMonth() + 1 && parseInt(match[2]) <= n.getDate()))) return sum + (p.value || 0);
         return sum;
       }, 0);
       csv += [sched.order_no, sched.product_name, sched.part_name, sched.作業者 || "未割当", sched.合計数, act, `${prog}%`, act - cp].join(",") + "\n";
     });
+
+    // 2. 【作業実績ログ】セクションの作成
     csv += "\n【作業実績ログ】\n完了日時,注文番号,製品名,部品名,工程名,担当者,標準時間,実績時間,差異\n";
+    
+    // ★ここが重要な修正ポイントです★
     workLog.history.forEach(h => {
-      const diff = h.actual_time_sec - h.standard_time_sec;
-      const diffStr = (diff >= 0 ? "" : "-") + formatElapsedTime(Math.abs(diff));
-      csv += [`${h.date} ${h.timestamp.slice(11, 19)}`, h.order_no, h.product_name, h.part_name, h.process_name, h.worker_name, formatElapsedTime(h.standard_time_sec), formatElapsedTime(h.actual_time_sec), diffStr].join(",") + "\n";
+      // 先ほど追加した formatToHMS 関数を使って、秒数を HH:MM:SS に変換します
+      const stdTime = formatToHMS(h.standard_time_sec);
+      const actTime = formatToHMS(h.actual_time_sec);
+      const diffTime = formatToHMS(h.actual_time_sec - h.standard_time_sec);
+
+      csv += [
+        `${h.date} ${h.timestamp.slice(11, 19)}`,
+        h.order_no,
+        h.product_name,
+        h.part_name,
+        h.process_name,
+        h.worker_name,
+        stdTime,  // "00:30:00" のような形式になります
+        actTime,  // "00:25:00" のような形式になります
+        diffTime
+      ].join(",") + "\n";
     });
+
+    // 3. ダウンロード処理
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     link.download = `製造日報_${new Date().toISOString().slice(0, 10)}.csv`;
