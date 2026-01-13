@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/gantt-pro-app/', // ここを追加しました！
+  // ↓ここを現在のリポジトリ名に合わせるのがポイントです
+  base: "/gantt-pro-app/", 
 })
